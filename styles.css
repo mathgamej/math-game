@@ -156,13 +156,15 @@ body {
     margin-bottom: 0.5rem;
 }
 
-.mode-chips {
+.mode-chips,
+.count-chips {
     display: flex;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
 }
 
-.mode-chip {
+.mode-chip,
+.count-chip {
     flex: 1;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--glass-border);
@@ -176,7 +178,8 @@ body {
     letter-spacing: 1px;
 }
 
-.mode-chip.active {
+.mode-chip.active,
+.count-chip.active {
     background: var(--accent-secondary);
     border-color: var(--accent-secondary);
 }
@@ -331,16 +334,35 @@ input::-webkit-inner-spin-button {
 }
 
 /* Result Screen */
-.final-score {
-    margin: 2rem 0;
-    display: flex;
-    flex-direction: column;
+.result-stats {
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    margin-bottom: 2rem;
 }
 
-.final-score .label {
-    font-size: 0.9rem;
+.final-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.final-stat .label {
+    font-size: 0.8rem;
     color: var(--text-dim);
-    margin-bottom: 0.5rem;
+    letter-spacing: 2px;
+}
+
+.final-stat .value {
+    font-size: 3rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 /* Keypad Styling */
@@ -357,7 +379,7 @@ input::-webkit-inner-spin-button {
     border-radius: 12px;
     color: white;
     font-size: 1.5rem;
-    padding: 1rem;
+    padding: 0.8rem;
     font-family: 'JetBrains Mono', monospace;
     cursor: pointer;
     transition: all 0.2s;
@@ -376,7 +398,7 @@ input::-webkit-inner-spin-button {
 }
 
 .key.wide {
-    grid-column: span 3;
+    grid-column: span 4;
     font-size: 1.2rem;
     font-weight: 600;
     margin-top: 0.5rem;
