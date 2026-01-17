@@ -40,7 +40,9 @@ class MathGame {
             if (e.key >= '0' && e.key <= '9') {
                 this.inputEl.value += e.key;
             } else if (e.key === '-') {
-                if (this.inputEl.value === '') this.inputEl.value = '-';
+                if (this.inputEl.value === '') {
+                    this.inputEl.value = '-';
+                }
             } else if (e.key === 'Backspace') {
                 this.inputEl.value = this.inputEl.value.slice(0, -1);
             } else if (e.key === 'Enter') {
@@ -60,7 +62,9 @@ class MathGame {
         } else if (action === 'clear') {
             this.inputEl.value = '';
         } else if (action === 'minus') {
-            if (this.inputEl.value === '') this.inputEl.value = '-';
+            if (this.inputEl.value === '') {
+                this.inputEl.value = '-';
+            }
         } else {
             // Numbers 0-9
             this.inputEl.value += value;
