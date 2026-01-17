@@ -108,9 +108,12 @@ class MathGame {
             });
         }
 
+        // Allowed input characters
+        const allowedKeys = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '/', 'x', 'y', '+', '-']);
+
         window.addEventListener('keydown', (e) => {
             if (!this.gameActive) return;
-            if ((e.key >= '0' && e.key <= '9') || e.key === '.' || e.key === '/' || e.key === 'x' || e.key === 'y' || e.key === '+' || e.key === '-') {
+            if (allowedKeys.has(e.key)) {
                 this.inputEl.value += e.key;
             } else if (e.key === 'Backspace') {
                 this.inputEl.value = this.inputEl.value.slice(0, -1);
@@ -125,17 +128,20 @@ class MathGame {
     }
 
     initSettings() {
+        // Toggle chips (operators)
         this.chips.forEach(c => c.addEventListener('click', () => {
             c.classList.toggle('active');
             this.updateSettings();
         }));
-        this.modeChips.forEach(c => c.addEventListener('click', () => {
-            this.modeChips.forEach(x => x.classList.remove('active'));
-            c.classList.add('active');
-            this.updateSettings();
-        }));
-        this.countChips.forEach(c => c.addEventListener('click', () => {
-            this.countChips.forEach(x => x.classList.remove('active'));
+
+        // Single-select chips (mode and count)
+        this.setupSingleSelectChips(this.modeChips);
+        this.setupSingleSelectChips(this.countChips);
+    }
+
+    setupSingleSelectChips(chipList) {
+        chipList.forEach(c => c.addEventListener('click', () => {
+            chipList.forEach(x => x.classList.remove('active'));
             c.classList.add('active');
             this.updateSettings();
         }));
@@ -231,11 +237,11 @@ class MathGame {
         const gen = generators[this.gameMode];
         if (gen) {
             this.currentProblem = gen();
-            this.problemEl.textContent = this.currentProblem.display + ' = ?';
-            // Equation mode has its own display logic since it's not always "= ?"
-            if (this.gameMode === 'equation') {
-                this.problemEl.textContent = this.currentProblem.display;
-            }
+            // Equation mode includes '=' in display, others need ' = ?' appended
+            const suffix = this.gameMode === 'equation' ? '' : ' = ?';
+            const problemHtml = this.currentProblem.display + suffix;
+            // Use innerHTML to allow styling of variables
+            this.problemEl.innerHTML = problemHtml;
         }
     }
 
@@ -398,10 +404,11 @@ class MathGame {
     // --- Utilities ---
     utilFormatTerm(coef, variable) {
         if (coef === 0) return '';
+        const varHtml = variable ? `<span class="math-var">${variable}</span>` : '';
         if (!variable) return coef.toString();
-        if (coef === 1) return variable;
-        if (coef === -1) return '-' + variable;
-        return coef.toString() + variable;
+        if (coef === 1) return varHtml;
+        if (coef === -1) return '-' + varHtml;
+        return coef.toString() + varHtml;
     }
 
     utilFormatOp(val) {
@@ -411,10 +418,10 @@ class MathGame {
 
     utilParseAlgebra(s) {
         const sums = { x: 0, y: 0, c: 0 };
-        // Normalize: remove spaces, convert +- to -, -- to +
-        const norm = s.replace(/\s/g, '').replace(/\+?-\+?/g, '-').replace(/--/g, '+');
+        // Normalize: remove spaces, handle double negatives
+        const norm = s.replace(/\s/g, '').replace(/--/g, '+').replace(/\+-|-\+/g, '-');
         // Regex to find terms: optional sign, then (digits+variable OR digits OR variable)
-        const matches = norm.matchAll(/[+-]?(\d*[xy]|\d+)/g);
+        const matches = norm.matchAll(/[+-]?(?:\d*[xy]|\d+)/g);
 
         for (const [part] of matches) {
             let coefStr = '', variable = null;
