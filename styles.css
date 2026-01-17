@@ -98,6 +98,7 @@ body {
     font-weight: 600;
     letter-spacing: 2px;
     background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -138,6 +139,95 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
+}
+
+/* Settings UI */
+.settings-group {
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+.settings-group label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+}
+
+.mode-chips {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.mode-chip {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 0.6rem;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+}
+
+.mode-chip.active {
+    background: var(--accent-secondary);
+    border-color: var(--accent-secondary);
+}
+
+.operator-chips {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.chip {
+    flex: 1;
+    min-width: 50px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 0.5rem;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chip.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.settings-row {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.settings-row .settings-group {
+    flex: 1;
+}
+
+.settings-group input[type="number"] {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: white;
+    padding: 0.5rem;
+    font-size: 1.2rem;
+    font-family: 'JetBrains Mono', monospace;
+    outline: none;
+}
+
+.settings-group input:focus {
+    border-color: var(--accent-primary);
 }
 
 .screen {
@@ -256,7 +346,7 @@ input::-webkit-inner-spin-button {
 /* Keypad Styling */
 .keypad {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 0.75rem;
     margin-top: 1.5rem;
 }

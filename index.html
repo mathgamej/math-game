@@ -37,8 +37,39 @@
 
         <section id="game-card" class="glass-card">
             <div id="start-screen" class="screen active">
-                <h2>Ready to Start?</h2>
-                <p>マイナス数値を含む四則演算に挑戦しましょう。</p>
+                <h2>Settings</h2>
+
+                <div class="settings-group">
+                    <label>NUMBER MODE</label>
+                    <div class="mode-chips">
+                        <div class="mode-chip active" data-mode="integer">INTEGER</div>
+                        <div class="mode-chip" data-mode="decimal">DECIMAL</div>
+                        <div class="mode-chip" data-mode="fraction">FRACTION</div>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <label>OPERATORS</label>
+                    <div class="operator-chips">
+                        <div class="chip active" data-op="+">+</div>
+                        <div class="chip active" data-op="-">-</div>
+                        <div class="chip active" data-op="*">×</div>
+                        <div class="chip" data-op="/">÷</div>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-group">
+                        <label>DIGITS</label>
+                        <input type="number" id="digit-select" value="1" min="1" max="5">
+                    </div>
+                    <div class="settings-group">
+                        <label>TERMS</label>
+                        <input type="number" id="term-select" value="2" min="2" max="5">
+                    </div>
+                </div>
+
+                <p>マイナス数値を含む計算に挑戦しましょう。</p>
                 <button id="start-btn" class="primary-btn">START GAME</button>
             </div>
 
@@ -59,8 +90,10 @@
                     <button class="key">7</button>
                     <button class="key">8</button>
                     <button class="key">9</button>
-                    <button class="key" data-action="minus">-</button>
                     <button class="key">0</button>
+                    <button class="key" data-action="dot">.</button>
+                    <button class="key" data-action="fraction">/</button>
+                    <button class="key" data-action="minus">-</button>
                     <button class="key" data-action="clear">C</button>
                     <button class="key wide" data-action="enter">ENTER</button>
                 </div>
