@@ -84,7 +84,12 @@ class MathGame {
         this.scoreEl = document.getElementById('score');
         this.timerEl = document.getElementById('timer');
         this.problemEl = document.getElementById('problem-text');
+        this.canvasEl = document.getElementById('problem-canvas');
         this.inputEl = document.getElementById('answer-input');
+        this.inputXEl = document.getElementById('answer-x');
+        this.inputYEl = document.getElementById('answer-y');
+        this.dualInputContainer = document.getElementById('dual-input-container');
+        this.modeLabelEl = document.getElementById('mode-label');
         this.feedbackEl = document.getElementById('feedback');
         this.finalTimeEl = document.getElementById('final-time');
 
@@ -100,6 +105,10 @@ class MathGame {
 
         this.initSettings();
 
+        // Add click listeners for dual inputs to enable focus
+        this.inputXEl.addEventListener('click', () => this.inputXEl.focus());
+        this.inputYEl.addEventListener('click', () => this.inputYEl.focus());
+
         const keypad = document.getElementById('keypad');
         if (keypad) {
             keypad.addEventListener('click', (e) => {
@@ -109,21 +118,69 @@ class MathGame {
         }
 
         // Allowed input characters
-        const allowedKeys = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '/', 'x', 'y', '+', '-']);
+        const allowedKeys = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '/', 'x', 'y', '+', '-', 'π', ',', '(', ')', '^']);
 
         window.addEventListener('keydown', (e) => {
             if (!this.gameActive) return;
+
+            // Get active input element
+            const activeInput = this.gameMode === 'systems' ?
+                (document.activeElement === this.inputYEl ? this.inputYEl : this.inputXEl) :
+                this.inputEl;
+
             if (allowedKeys.has(e.key)) {
-                this.inputEl.value += e.key;
+                activeInput.value += e.key;
+            } else if (e.key === 'p' || e.key === 'P') {
+                activeInput.value += 'π';
             } else if (e.key === 'Backspace') {
-                this.inputEl.value = this.inputEl.value.slice(0, -1);
+                activeInput.value = activeInput.value.slice(0, -1);
             } else if (e.key === 'Enter') {
                 this.checkAnswer();
+            } else if (e.key === 'Tab' && this.gameMode === 'systems') {
+                e.preventDefault();
+                // Toggle between x and y inputs
+                if (document.activeElement === this.inputXEl) {
+                    this.inputYEl.focus();
+                } else {
+                    this.inputXEl.focus();
+                }
             }
         });
 
+        // Service Worker registration with auto-update
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(() => { });
+            navigator.serviceWorker.register('sw.js')
+                .then((registration) => {
+                    console.log('[App] Service Worker registered');
+
+                    // Check for updates every 60 seconds
+                    setInterval(() => {
+                        registration.update();
+                    }, 60000);
+
+                    // Listen for updates
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        console.log('[App] New Service Worker installing...');
+
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'activated') {
+                                console.log('[App] New Service Worker activated - reloading page');
+                                // Automatically reload to get the new version
+                                window.location.reload();
+                            }
+                        });
+                    });
+                })
+                .catch((error) => {
+                    console.error('[App] Service Worker registration failed:', error);
+                });
+
+            // Listen for controller change (when new SW takes over)
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('[App] Controller changed - reloading');
+                window.location.reload();
+            });
         }
     }
 
@@ -167,13 +224,42 @@ class MathGame {
         const action = target.getAttribute('data-action');
         const val = target.textContent;
 
+        // Get active input
+        const activeInput = this.gameMode === 'systems' ?
+            (document.activeElement === this.inputYEl ? this.inputYEl : this.inputXEl) :
+            this.inputEl;
+
         if (action === 'enter') this.checkAnswer();
-        else if (action === 'clear') this.inputEl.value = '';
-        else if (action === 'minus' || action === 'plus') { this.inputEl.value += val; }
-        else if (action === 'dot') { if (!this.inputEl.value.includes('.')) this.inputEl.value += '.'; }
-        else if (action === 'fraction') { if (!this.inputEl.value.includes('/')) this.inputEl.value += '/'; }
-        else if (action === 'char') { this.inputEl.value += val; }
-        else this.inputEl.value += val;
+        else if (action === 'clear') {
+            if (this.gameMode === 'systems') {
+                this.inputXEl.value = '';
+                this.inputYEl.value = '';
+            } else {
+                this.inputEl.value = '';
+            }
+        }
+        else if (action === 'minus' || action === 'plus') { activeInput.value += val; }
+        else if (action === 'dot') { if (!activeInput.value.includes('.')) activeInput.value += '.'; }
+        else if (action === 'fraction') { if (!activeInput.value.includes('/')) activeInput.value += '/'; }
+        else if (action === 'char') {
+            const char = target.getAttribute('data-char') || val;
+            activeInput.value += char;
+        }
+        else activeInput.value += val;
+    }
+
+    updateKeypad(requiredKeys = []) {
+        // requiredKeys: array of keys needed for this problem, e.g., ['x', 'y', 'π']
+        const dynamicButtons = document.querySelectorAll('.dynamic-key');
+
+        dynamicButtons.forEach(btn => {
+            const char = btn.getAttribute('data-char');
+            if (requiredKeys.includes(char)) {
+                btn.style.display = '';
+            } else {
+                btn.style.display = 'none';
+            }
+        });
     }
 
     startGame() {
@@ -225,31 +311,93 @@ class MathGame {
 
     // --- Problem Generation Facade ---
     generateProblem() {
+        // Clear inputs
         this.inputEl.value = '';
+        this.inputXEl.value = '';
+        this.inputYEl.value = '';
+
         const generators = {
             'integer': () => this.generatorArithmetic('integer'),
             'decimal': () => this.generatorArithmetic('decimal'),
             'fraction': () => this.generatorArithmetic('fraction'),
             'algebra': () => this.generatorAlgebra(),
-            'equation': () => this.generatorEquation()
+            'equation': () => this.generatorEquation(),
+            'geometry': () => this.generatorGeometry(),
+            'systems': () => this.generatorSystems(),
+            'factor': () => this.generatorFactoring(),
+            'complete': () => this.generatorCompleteSquare()
         };
 
         const gen = generators[this.gameMode];
         if (gen) {
             this.currentProblem = gen();
-            // Equation mode includes '=' in display, others need ' = ?' appended
-            const suffix = this.gameMode === 'equation' ? '' : ' = ?';
-            const problemHtml = this.currentProblem.display + suffix;
-            // Use innerHTML to allow styling of variables
-            this.problemEl.innerHTML = problemHtml;
+
+            // Update keypad based on mode
+            let requiredKeys = [];
+            if (this.gameMode === 'algebra') requiredKeys = ['x', 'y'];
+            else if (this.gameMode === 'equation') requiredKeys = ['x'];
+            else if (this.gameMode === 'systems') requiredKeys = ['x', 'y', ','];
+            else if (this.gameMode === 'factor') requiredKeys = ['x', '(', ')'];
+            else if (this.gameMode === 'complete') requiredKeys = ['x', '(', ')', '^'];
+            else if (this.gameMode === 'geometry' && this.currentProblem.problemData) {
+                // For geometry, add π if it's a circle problem
+                if (this.currentProblem.problemData.type.includes('circle')) {
+                    requiredKeys = ['π'];
+                }
+            }
+            this.updateKeypad(requiredKeys);
+
+            // Show/hide dual input for systems mode
+            if (this.gameMode === 'systems') {
+                this.inputEl.parentElement.style.display = 'none';
+                this.dualInputContainer.style.display = 'flex';
+                setTimeout(() => this.inputXEl.focus(), 10);
+            } else {
+                this.inputEl.parentElement.style.display = '';
+                this.dualInputContainer.style.display = 'none';
+            }
+
+            // Set mode label
+            const modeLabels = {
+                'factor': '因数分解 (Factoring)',
+                'complete': '平方完成 (Completing the Square)'
+            };
+            this.modeLabelEl.textContent = modeLabels[this.gameMode] || '';
+
+            // Geometry mode uses canvas, others use text
+            if (this.gameMode === 'geometry') {
+                this.problemEl.style.display = 'none';
+                this.canvasEl.style.display = 'block';
+                this.drawGeometryProblem(this.currentProblem);
+            } else {
+                this.problemEl.style.display = 'block';
+                this.canvasEl.style.display = 'none';
+
+                let displayHtml = this.currentProblem.display;
+                if (this.gameMode === 'equation') {
+                    displayHtml += '<div style="font-size: 0.6em; margin-top: 0.5rem; opacity: 0.7;"><span class="math-var">x</span> = ?</div>';
+                } else {
+                    displayHtml += ' = ?';
+                }
+                this.problemEl.innerHTML = displayHtml;
+            }
         }
     }
 
     // --- Answer Validation Facade ---
     checkAnswer() {
         if (!this.gameActive || !this.currentProblem) return;
-        const userInput = this.inputEl.value.trim().replace(/\s/g, '');
-        if (userInput === '') return;
+
+        let userInput;
+        if (this.gameMode === 'systems') {
+            const xVal = this.inputXEl.value.trim();
+            const yVal = this.inputYEl.value.trim();
+            if (xVal === '' || yVal === '') return;
+            userInput = `${xVal},${yVal}`;
+        } else {
+            userInput = this.inputEl.value.trim().replace(/\s/g, '');
+            if (userInput === '') return;
+        }
 
         let isCorrect = false;
         try {
@@ -398,6 +546,304 @@ class MathGame {
             display,
             answer,
             validate: (input) => Fraction.fromString(input).equals(answer)
+        };
+    }
+
+    generatorGeometry() {
+        const types = ['triangle_pythagorean', 'triangle_area', 'circle_circumference', 'circle_area', 'rectangle'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        const digits = Math.min(this.digitCount, 2); // Keep geometry simple
+
+        let answer, problemData;
+
+        if (type === 'triangle_pythagorean') {
+            // Use Pythagorean triples to ensure valid right triangles
+            // Common triples: (3,4,5), (5,12,13), (8,15,17), (7,24,25), (6,8,10)
+            const baseTriples = [
+                [3, 4, 5],
+                [5, 12, 13],
+                [6, 8, 10],
+                [8, 15, 17],
+                [7, 24, 25],
+                [9, 12, 15],
+                [12, 16, 20]
+            ];
+
+            const baseTriple = baseTriples[Math.floor(Math.random() * baseTriples.length)];
+            const scale = Math.max(1, Math.min(digits, Math.floor(Math.random() * 2) + 1)); // Scale by 1 or 2
+
+            let a = baseTriple[0] * scale;
+            let b = baseTriple[1] * scale;
+            let c = baseTriple[2] * scale;
+
+            const unknown = Math.floor(Math.random() * 3); // 0=a, 1=b, 2=c
+
+            if (unknown === 0) answer = new Fraction(a, 1);
+            else if (unknown === 1) answer = new Fraction(b, 1);
+            else answer = new Fraction(c, 1);
+
+            problemData = { type, a, b, c, unknown };
+        } else if (type === 'triangle_area') {
+            const base = Math.max(2, Math.abs(this.utilGetRandomInt(digits)) || 2);
+            const height = Math.max(2, Math.abs(this.utilGetRandomInt(digits)) || 2);
+            answer = new Fraction(Math.round(base * height / 2), 1);
+            problemData = { type, base, height };
+        } else if (type === 'circle_circumference') {
+            const radius = Math.max(2, Math.abs(this.utilGetRandomInt(digits)) || 2);
+            const circ = Math.round(2 * Math.PI * radius * 10) / 10;
+            answer = Fraction.fromNumber(circ);
+            problemData = { type, radius };
+        } else if (type === 'circle_area') {
+            const radius = Math.max(2, Math.abs(this.utilGetRandomInt(digits)) || 2);
+            const area = Math.round(Math.PI * radius * radius * 10) / 10;
+            answer = Fraction.fromNumber(area);
+            problemData = { type, radius };
+        } else { // rectangle
+            const width = Math.max(2, Math.abs(this.utilGetRandomInt(digits)) || 2);
+            const height = Math.max(2, Math.abs(this.utilGetRandomInt(digits)) || 2);
+            const area = width * height;
+            answer = new Fraction(area, 1);
+            problemData = { type, width, height };
+        }
+
+        return {
+            display: '', // Not used for geometry
+            answer,
+            problemData,
+            validate: (input) => {
+                // Handle π in user input: "9π" should be interpreted as 9 * π
+                let normalizedInput = input;
+                // Match patterns like "9π" or "π" or "3.5π"
+                const piPattern = /(\d+\.?\d*)?π/g;
+                normalizedInput = normalizedInput.replace(piPattern, (match, coef) => {
+                    const coefficient = coef ? parseFloat(coef) : 1;
+                    return (coefficient * Math.PI).toString();
+                });
+
+                const userVal = Fraction.fromString(normalizedInput);
+                // Allow small tolerance for decimal answers
+                return Math.abs(userVal.toNumber() - answer.toNumber()) < 0.5;
+            }
+        };
+    }
+
+    drawGeometryProblem(problem) {
+        const canvas = this.canvasEl;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Set textbook style
+        ctx.strokeStyle = '#f8fafc';
+        ctx.fillStyle = '#f8fafc';
+        ctx.lineWidth = 1.5;
+        ctx.font = 'italic 18px "EB Garamond"';
+
+        const data = problem.problemData;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        if (data.type === 'triangle_pythagorean') {
+            this.drawRightTriangle(ctx, centerX - 80, centerY + 60, data.a * 15, data.b * 15, data.unknown);
+        } else if (data.type === 'triangle_area') {
+            this.drawTriangleArea(ctx, centerX, centerY + 60, data.base * 20, data.height * 20);
+        } else if (data.type.startsWith('circle')) {
+            this.drawCircle(ctx, centerX, centerY, data.radius * 15, data.type === 'circle_circumference');
+        } else if (data.type === 'rectangle') {
+            this.drawRectangle(ctx, centerX - data.width * 10, centerY - data.height * 10, data.width * 20, data.height * 20);
+        }
+    }
+
+    drawRightTriangle(ctx, x, y, a, b, unknown) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + a, y);
+        ctx.lineTo(x + a, y - b);
+        ctx.closePath();
+        ctx.stroke();
+
+        // Labels
+        const labels = [a / 15, b / 15, Math.round(Math.sqrt(a * a + b * b) / 15)];
+        ctx.fillText(unknown === 0 ? '?' : labels[0], x + a / 2, y + 20);
+        ctx.fillText(unknown === 1 ? '?' : labels[1], x + a + 20, y - b / 2);
+        ctx.fillText(unknown === 2 ? '?' : labels[2], x + a / 2 - 30, y - b / 2 - 10);
+
+        // Right angle marker
+        ctx.strokeRect(x + a - 10, y - 10, 10, 10);
+    }
+
+    drawTriangleArea(ctx, x, y, base, height) {
+        ctx.beginPath();
+        ctx.moveTo(x - base / 2, y);
+        ctx.lineTo(x + base / 2, y);
+        ctx.lineTo(x, y - height);
+        ctx.closePath();
+        ctx.stroke();
+
+        // Height line (dashed)
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y - height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Labels
+        ctx.fillText(base / 20, x, y + 20);
+        ctx.fillText(height / 20, x + 15, y - height / 2);
+        ctx.fillText('Area = ?', x - 40, y - height - 20);
+    }
+
+    drawCircle(ctx, x, y, radius, isCircumference) {
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // Radius line
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + radius, y);
+        ctx.stroke();
+
+        // Labels
+        ctx.fillText('r = ' + (radius / 15), x + radius / 2 - 10, y - 10);
+        ctx.fillText(isCircumference ? 'C = ?' : 'A = ?', x - 20, y + radius + 30);
+    }
+
+    drawRectangle(ctx, x, y, width, height) {
+        ctx.strokeRect(x, y, width, height);
+
+        // Labels
+        ctx.fillText(width / 20, x + width / 2 - 10, y - 10);
+        ctx.fillText(height / 20, x - 30, y + height / 2);
+        ctx.fillText('A = ?', x + width / 2 - 20, y + height + 30);
+    }
+
+    // --- New Advanced Algebra Generators ---
+    generatorSystems() {
+        // Generate 2x2 linear system: ax + by = c, dx + ey = f
+        // Ensure integer solutions for x and y
+        const x = this.utilGetRandomInt(1);
+        const y = this.utilGetRandomInt(1);
+
+        // Generate first equation coefficients
+        const a = this.utilGetRandomInt(1) || 1;
+        const b = this.utilGetRandomInt(1) || 1;
+        const c = a * x + b * y;
+
+        // Generate second equation coefficients
+        const d = this.utilGetRandomInt(1) || 1;
+        const e = this.utilGetRandomInt(1) || 1;
+        const f = d * x + e * y;
+
+        // Format equations with proper HTML
+        const formatEq = (a, b, c) => {
+            let eq = this.utilFormatTerm(a, 'x');
+            if (b >= 0) eq += ' +';
+            eq += ' ' + this.utilFormatTerm(b, 'y') + ' = ' + c;
+            return eq;
+        };
+
+        const eq1 = formatEq(a, b, c);
+        const eq2 = formatEq(d, e, f);
+
+        return {
+            display: `${eq1}<br>${eq2}`,
+            answer: { x: new Fraction(x, 1), y: new Fraction(y, 1) },
+            validate: (input) => {
+                // Expected format: "x,y" or "x, y"
+                const parts = input.split(',').map(s => s.trim());
+                if (parts.length !== 2) return false;
+                try {
+                    const userX = Fraction.fromString(parts[0]);
+                    const userY = Fraction.fromString(parts[1]);
+                    return userX.equals(new Fraction(x, 1)) && userY.equals(new Fraction(y, 1));
+                } catch {
+                    return false;
+                }
+            }
+        };
+    }
+
+    generatorFactoring() {
+        // Generate factorable quadratic: x² + bx + c = (x + p)(x + q)
+        // where p + q = b and p × q = c
+        const p = this.utilGetRandomInt(1);
+        const q = this.utilGetRandomInt(1);
+        const b = p + q;
+        const c = p * q;
+
+        // Display as x² + bx + c (handle signs properly)
+        let display = '<span class="math-var">x</span>\u00b2';
+        if (b !== 0) {
+            if (b === 1) display += ' + <span class="math-var">x</span>';
+            else if (b === -1) display += ' - <span class="math-var">x</span>';
+            else display += (b > 0 ? ' + ' : ' - ') + Math.abs(b) + '<span class="math-var">x</span>';
+        }
+        if (c !== 0) {
+            display += (c > 0 ? ' + ' : ' - ') + Math.abs(c);
+        }
+
+        return {
+            display,
+            answer: { p, q },
+            validate: (input) => {
+                // Expected formats: (x+p)(x+q) or (x-p)(x-q) etc.
+                const normalized = input.replace(/\s/g, '').toLowerCase();
+
+                // Match patterns like (x+2)(x+3) or (x-2)(x+3)
+                const pattern = /\(x([+-]\d+)\)\(x([+-]\d+)\)/;
+                const match = normalized.match(pattern);
+
+                if (!match) return false;
+
+                const userP = parseInt(match[1]);
+                const userQ = parseInt(match[2]);
+
+                // Check both orderings
+                return (userP === p && userQ === q) || (userP === q && userQ === p);
+            }
+        };
+    }
+
+    generatorCompleteSquare() {
+        // Generate x² + bx + c and convert to (x + h)² + k form
+        // where h = b/2 and k = c - h²
+        const b = this.utilGetRandomInt(2) * 2; // Even number for easier completion
+        const c = this.utilGetRandomInt(2);
+
+        const h = b / 2;
+        const k = c - (h * h);
+
+        // Display as x² + bx + c
+        let display = '<span class="math-var">x</span>\u00b2';
+        if (b !== 0) {
+            if (b === 1) display += ' + <span class="math-var">x</span>';
+            else if (b === -1) display += ' - <span class="math-var">x</span>';
+            else display += (b > 0 ? ' + ' : ' - ') + Math.abs(b) + '<span class="math-var">x</span>';
+        }
+        if (c !== 0) {
+            display += (c > 0 ? ' + ' : ' - ') + Math.abs(c);
+        }
+
+        return {
+            display,
+            answer: { h, k },
+            validate: (input) => {
+                // Expected format: (x+h)^2+k or (x-h)^2+k
+                const normalized = input.replace(/\s/g, '').toLowerCase();
+
+                // Match patterns like (x+2)^2-3 or (x-2)^2+5
+                const pattern = /\(x([+-]?\d+(?:\.\d+)?)\)\^2([+-]?\d+(?:\.\d+)?)/;
+                const match = normalized.match(pattern);
+
+                if (!match) return false;
+
+                const userH = parseFloat(match[1]);
+                const userK = parseFloat(match[2]);
+
+                // Allow small tolerance for decimal values
+                return Math.abs(userH - h) < 0.1 && Math.abs(userK - k) < 0.1;
+            }
         };
     }
 

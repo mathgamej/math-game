@@ -51,6 +51,10 @@
                         <div class="mode-chip" data-mode="fraction">FRACTION</div>
                         <div class="mode-chip" data-mode="algebra">ALGEBRA</div>
                         <div class="mode-chip" data-mode="equation">EQUATION</div>
+                        <div class="mode-chip" data-mode="geometry">GEOMETRY</div>
+                        <div class="mode-chip" data-mode="systems">SYSTEMS</div>
+                        <div class="mode-chip" data-mode="factor">FACTOR</div>
+                        <div class="mode-chip" data-mode="complete">COMPLETE</div>
                     </div>
                 </div>
 
@@ -90,29 +94,58 @@
 
             <div id="play-screen" class="screen">
                 <div class="problem-container">
+                    <div id="mode-label" class="mode-label"></div>
                     <div id="problem-text" class="problem">12 + (-5) = ?</div>
+                    <canvas id="problem-canvas" width="400" height="300" style="display: none;"></canvas>
                 </div>
                 <div class="input-container">
                     <input type="text" id="answer-input" placeholder="?" autocomplete="off" readonly>
                 </div>
+                <!-- Dual input for systems mode -->
+                <div id="dual-input-container" class="dual-input-container" style="display: none;">
+                    <div class="input-pair">
+                        <label>x =</label>
+                        <input type="text" id="answer-x" placeholder="?" autocomplete="off" readonly>
+                    </div>
+                    <div class="input-pair">
+                        <label>y =</label>
+                        <input type="text" id="answer-y" placeholder="?" autocomplete="off" readonly>
+                    </div>
+                </div>
                 <div id="keypad" class="keypad">
+                    <!-- Numbers and basic arithmetic -->
                     <button class="key">7</button>
                     <button class="key">8</button>
                     <button class="key">9</button>
                     <button class="key" data-action="minus">-</button>
-                    <button class="key" data-action="plus">+</button>
+
                     <button class="key">4</button>
                     <button class="key">5</button>
                     <button class="key">6</button>
-                    <button class="key" data-action="clear">C</button>
+                    <button class="key" data-action="plus">+</button>
+
                     <button class="key">1</button>
                     <button class="key">2</button>
                     <button class="key">3</button>
+                    <button class="key" data-action="fraction">/</button>
+
                     <button class="key" data-action="dot">.</button>
                     <button class="key">0</button>
-                    <button class="key" data-action="fraction">/</button>
-                    <button class="key" data-action="char">x</button>
-                    <button class="key" data-action="char">y</button>
+                    <button class="key empty-slot"></button>
+                    <button class="key empty-slot"></button>
+
+                    <!-- Dynamic buttons row (4 slots) -->
+                    <button class="key dynamic-key" data-action="char" data-char="x" style="display: none;">x</button>
+                    <button class="key dynamic-key" data-action="char" data-char="y" style="display: none;">y</button>
+                    <button class="key dynamic-key" data-action="char" data-char="π" style="display: none;">π</button>
+                    <button class="key dynamic-key" data-action="char" data-char="," style="display: none;">,</button>
+                    <button class="key dynamic-key" data-action="char" data-char="(" style="display: none;">(</button>
+                    <button class="key dynamic-key" data-action="char" data-char=")" style="display: none;">)</button>
+                    <button class="key dynamic-key" data-action="char" data-char="^" style="display: none;">^</button>
+                    <button class="key empty-slot dynamic-spacer"></button>
+
+                    <!-- Fixed action buttons (always at the bottom) -->
+                    <button class="key wide" data-action="clear">CLEAR</button>
                     <button class="key wide" data-action="enter">ENTER</button>
                 </div>
                 <div id="feedback" class="feedback"></div>
